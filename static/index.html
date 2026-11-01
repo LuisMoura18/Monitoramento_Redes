@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sinal — Chat de Alertas</title>
+<style>
+  :root {
+    --bg: #0f1216; --painel: #171b21; --painel2: #1e232b; --borda: #2a313b;
+    --texto: #e6e9ee; --suave: #8b95a3; --acento: #4fb3a9; --acento2: #2f7f78;
+    --alerta: #e5484d; --aviso: #f0a33a; --ok: #46a758; --minha: #1f3b39;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--texto); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .oculto { display: none !important; }
+
+  /* ---------- login ---------- */
+  #tela-login { min-height: 100%; display: grid; place-items: center; padding: 16px; }
+  .cartao { width: 100%; max-width: 360px; background: var(--painel); border: 1px solid var(--borda); border-radius: 14px; padding: 28px 24px; }
+  .marca { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .marca .pulso { width: 12px; height: 12px; border-radius: 50%; background: var(--acento); box-shadow: 0 0 0 0 var(--acento); animation: pulso 2s infinite; }
+  @keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(79,179,169,.6); } 70% { box-shadow: 0 0 0 10px rgba(79,179,169,0); } 100% { box-shadow: 0 0 0 0 rgba(79,179,169,0); } }
+  .marca h1 { margin: 0; font-size: 22px; letter-spacing: .5px; }
+  .sub { color: var(--suave); margin: 0 0 22px; font-size: 13px; }
+  label { display: block; font-size: 12px; color: var(--suave); margin: 12px 0 6px; text-transform: uppercase; letter-spacing: .6px; }
+  .campo { width: 100%; padding: 11px 12px; background: var(--painel2); border: 1px solid var(--borda); border-radius: 9px; outline: none; }
+  .campo:focus { border-color: var(--acento); }
+  .botao { width: 100%; margin-top: 20px; padding: 11px; border: 0; border-radius: 9px; background: var(--acento); color: #0b1a19; font-weight: 600; }
+  .botao:disabled { opacity: .6; cursor: default; }
+  .msg-erro { color: var(--alerta); font-size: 13px; min-height: 18px; margin-top: 10px; }
+  .dica { color: var(--suave); font-size: 12px; margin-top: 14px; }
+
+  /* ---------- app ---------- */
+  #tela-chat { height: 100%; display: grid; grid-template-rows: auto auto 1fr; }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--painel); border-bottom: 1px solid var(--borda); flex-wrap: wrap; }
+  header .marca h1 { font-size: 17px; }
+  .chip { font-family: var(--mono); font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--painel2); border: 1px solid var(--borda); color: var(--suave); white-space: nowrap; }
+  .chip.ok { color: var(--ok); border-color: #2c5a35; }
+  .chip.ruim { color: var(--alerta); border-color: #6b2a2c; }
+  .chip.meio { color: var(--aviso); border-color: #6b4a1f; }
+  .espaco { flex: 1; }
+  .botao-sec { padding: 6px 12px; border-radius: 8px; background: transparent; border: 1px solid var(--borda); font-size: 13px; }
+  .botao-sec:hover { border-color: var(--acento); }
+
+  #banner { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #3a1517; border-bottom: 1px solid #6b2a2c; color: #ffd9da; font-size: 14px; }
+  #banner.medio { background: #3a2a12; border-color: #6b4a1f; color: #ffe7c2; }
+  #banner .x { margin-left: auto; background: none; border: 0; font-size: 18px; line-height: 1; color: inherit; }
+
+  main { display: grid; grid-template-columns: 1fr 280px; min-height: 0; }
+  .coluna-chat { display: grid; grid-template-rows: auto 1fr auto; min-height: 0; }
+  .barra-sala { display: flex; gap: 8px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--borda); font-size: 13px; color: var(--suave); }
+  .barra-sala select { background: var(--painel2); border: 1px solid var(--borda); border-radius: 7px; padding: 4px 8px; color: var(--texto); }
+  #mensagens { overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .carregar { align-self: center; margin-bottom: 6px; }
+  .msg { max-width: 78%; padding: 7px 11px 6px; border-radius: 12px; background: var(--painel2); border: 1px solid var(--borda); word-wrap: break-word; white-space: pre-wrap; }
+  .msg.minha { align-self: flex-end; background: var(--minha); border-color: #2c5653; }
+  .msg.pendente { opacity: .55; }
+  .msg.falhou { border-color: var(--alerta); }
+  .msg .meta { font-size: 11px; color: var(--suave); margin-bottom: 2px; display: flex; gap: 8px; }
+  .msg .meta b { color: var(--acento); font-weight: 600; }
+  .msg.destaque { border-color: var(--alerta); box-shadow: inset 3px 0 0 var(--alerta); }
+  .sistema { align-self: center; font-size: 12px; color: var(--suave); padding: 2px 10px; }
+  .sistema.erro { color: var(--alerta); }
+
+  form.envio { display: flex; gap: 8px; padding: 10px 16px 14px; border-top: 1px solid var(--borda); background: var(--painel); }
+  form.envio .campo { flex: 1; }
+  form.envio .botao { width: auto; margin: 0; padding: 0 18px; }
+  .contador { font-family: var(--mono); font-size: 11px; color: var(--suave); align-self: center; min-width: 44px; text-align: right; }
+
+  aside { border-left: 1px solid var(--borda); background: var(--painel); overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 18px; }
+  aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .7px; color: var(--suave); margin: 0 0 8px; font-weight: 600; }
+  .lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .lista li { font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+  .alerta-item { font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--painel2); border-left: 3px solid var(--alerta); }
+  .alerta-item.medio { border-left-color: var(--aviso); }
+  .alerta-item .meta { font-family: var(--mono); font-size: 11px; color: var(--suave); }
+  .vazio { color: var(--suave); font-size: 13px; }
+
+  @media (max-width: 760px) {
+    main { grid-template-columns: 1fr; }
+    aside { display: none; border-left: 0; }
+    aside.aberto { display: flex; position: fixed; inset: 0; z-index: 10; padding-top: 60px; }
+    .msg { max-width: 90%; }
+    header { padding: 8px 12px; gap: 8px; }
+    #mensagens, form.envio, .barra-sala { padding-left: 12px; padding-right: 12px; }
+  }
+  @media (min-width: 761px) { #btn-painel, #btn-fechar-painel { display: none; } }
+  #btn-fechar-painel { position: fixed; top: 14px; right: 14px; }
+</style>
+</head>
+<body>
+
+<!-- ======================= LOGIN ======================= -->
+<section id="tela-login">
+  <form class="cartao" id="form-login" autocomplete="on">
+    <div class="marca"><span class="pulso"></span><h1>Sinal</h1></div>
+    <p class="sub">Mensagens e alertas em tempo real</p>
+    <label for="usuario">Usuário</label>
+    <input class="campo" id="usuario" name="usuario" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_.\-]{3,20}" autocomplete="username">
+    <label for="senha">Senha</label>
+    <input class="campo" id="senha" name="senha" type="password" required minlength="4" maxlength="64" autocomplete="current-password">
+    <button class="botao" id="btn-entrar">Entrar</button>
+    <div class="msg-erro" id="erro-login"></div>
+    <p class="dica">No primeiro acesso o usuário é criado com a senha informada.</p>
+  </form>
+</section>
+
+<!-- ======================= CHAT ======================= -->
+<section id="tela-chat" class="oculto">
+  <header>
+    <div class="marca"><span class="pulso"></span><h1>Sinal</h1></div>
+    <span class="chip" id="chip-usuario">—</span>
+    <span class="chip" id="chip-status">desconectado</span>
+    <span class="chip" id="chip-rtt" title="RTT de aplicação (ping/pong via WebSocket)">RTT —</span>
+    <span class="espaco"></span>
+    <button class="botao-sec" id="btn-painel">Painel</button>
+    <button class="botao-sec" id="btn-sair">Sair</button>
+  </header>
+
+  <div id="banner" class="oculto"><strong>⚠</strong><span id="banner-texto"></span><button class="x" id="banner-fechar" aria-label="fechar">×</button></div>
+
+  <main>
+    <div class="coluna-chat">
+      <div class="barra-sala">
+        Sala
+        <select id="sala">
+          <option value="geral">#geral</option>
+          <option value="laboratorio">#laboratorio</option>
+          <option value="infra">#infra</option>
+        </select>
+        <span class="espaco"></span>
+        <span id="info-conexao" style="font-family: var(--mono); font-size: 11px;"></span>
+      </div>
+      <div id="mensagens"></div>
+      <form class="envio" id="form-envio">
+        <input class="campo" id="texto" placeholder="Escreva uma mensagem… (palavras como “urgente” geram alerta)" maxlength="2000" autocomplete="off">
+        <span class="contador" id="contador">0/2000</span>
+        <button class="botao" id="btn-enviar">Enviar</button>
+      </form>
+    </div>
+
+    <aside id="painel">
+      <button class="botao-sec" id="btn-fechar-painel">Fechar</button>
+      <section>
+        <h2>Online (<span id="n-online">0</span>)</h2>
+        <ul class="lista" id="lista-online"><li class="vazio">ninguém</li></ul>
+      </section>
+      <section>
+        <h2>Alertas recentes</h2>
+        <div class="lista" id="lista-alertas"><span class="vazio">nenhum alerta</span></div>
+      </section>
+    </aside>
+  </main>
+</section>
+
+<script>
+"use strict";
+/* ===================== Estado ===================== */
+const API = location.origin;                       // o mesmo servidor serve a página e a API
+const WS_URL = API.replace(/^http/, "ws") + "/ws";
+const est = {
+  token: null, usuario: null, sala: "geral", ws: null, idConexao: null,
+  tentativas: 0, timerReconexao: null, timerPing: null, saindo: false,
+  pendentes: new Map(),                            // id_cliente -> {elemento, t0}
+  seqPing: 0, pingsAbertos: new Map(), rtts: [],
+  maisAntigo: null,
+};
+const $ = (id) => document.getElementById(id);
+
+try {                                              // sessão lembrada neste navegador
+  const salvo = JSON.parse(sessionStorage.getItem("sinal") || "null");
+  if (salvo && salvo.token) { est.token = salvo.token; est.usuario = salvo.usuario; }
+} catch (_) {}
+
+/* ===================== HTTP ===================== */
+async function api(caminho, opcoes = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (est.token) headers.Authorization = "Bearer " + est.token;
+  const r = await fetch(API + caminho, { ...opcoes, headers });
+  let corpo = null;
+  try { corpo = await r.json(); } catch (_) {}
+  if (!r.ok) {
+    const e = new Error(corpo?.erro?.descricao || `HTTP ${r.status}`);
+    e.status = r.status; throw e;
+  }
+  return corpo;
+}
+
+/* ===================== Login ===================== */
+$("form-login").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  $("erro-login").textContent = "";
+  $("btn-entrar").disabled = true;
+  try {
+    const r = await api("/api/login", { method: "POST",
+      body: JSON.stringify({ usuario: $("usuario").value.trim(), senha: $("senha").value }) });
+    est.token = r.token; est.usuario = r.usuario;
+    try { sessionStorage.setItem("sinal", JSON.stringify({ token: r.token, usuario: r.usuario })); } catch (_) {}
+    abrirChat();
+  } catch (e) {
+    $("erro-login").textContent = e.message === "Failed to fetch" ? "Servidor indisponível." : e.message;
+  } finally { $("btn-entrar").disabled = false; }
+});
+
+$("btn-sair").addEventListener("click", async () => {
+  est.saindo = true;
+  try { await api("/api/logout", { method: "POST" }); } catch (_) {}
+  try { sessionStorage.removeItem("sinal"); } catch (_) {}
+  if (est.ws) est.ws.close(1000, "logout");
+  clearTimeout(est.timerReconexao); clearInterval(est.timerPing);
+  est.token = null;
+  $("tela-chat").classList.add("oculto"); $("tela-login").classList.remove("oculto");
+});
+
+function abrirChat() {
+  est.saindo = false;
+  $("tela-login").classList.add("oculto"); $("tela-chat").classList.remove("oculto");
+  $("chip-usuario").textContent = "@" + est.usuario;
+  carregarHistorico(true);
+  carregarAlertas();
+  conectar();
+  $("texto").focus();
+}
+
+/* ===================== WebSocket ===================== */
+function conectar() {
+  clearTimeout(est.timerReconexao);
+  status("conectando…", "meio");
+  const sock = new WebSocket(`${WS_URL}?token=${encodeURIComponent(est.token)}&sala=${est.sala}`);
+  est.ws = sock;
+
+  sock.onopen = () => {
+    est.tentativas = 0;
+    status("conectado", "ok");
+    clearInterval(est.timerPing);
+    est.timerPing = setInterval(enviarPing, 5000);
+    enviarPing();
+  };
+
+  sock.onmessage = (ev) => {
+    let m;
+    try { m = JSON.parse(ev.data); } catch (_) { return sistema("mensagem inválida recebida do servidor", true); }
+    tratar(m);
+  };
+
+  sock.onclose = (ev) => {
+    clearInterval(est.timerPing);
+    if (est.ws !== sock) return;
+    est.ws = null;
+    marcarPendentesComoFalha();
+    if (est.saindo) return;
+    if (ev.code === 1008 || ev.code === 1002) sistema(`conexão encerrada pelo servidor: ${ev.reason || ev.code}`, true);
+    // Backoff exponencial: 1s, 2s, 4s, 8s... até 15s
+    const espera = Math.min(15000, 1000 * 2 ** est.tentativas);
+    est.tentativas++;
+    status(`reconectando em ${Math.round(espera / 1000)}s`, "ruim");
+    est.timerReconexao = setTimeout(async () => {
+      // Antes de reconectar, confere via HTTP se o token ainda vale
+      try { await api("/api/historico?limite=1&sala=" + est.sala); }
+      catch (e) {
+        if (e.status === 401) { sistema("sessão expirada, faça login de novo", true); return $("btn-sair").click(); }
+      }
+      conectar();
+    }, espera);
+  };
+  sock.onerror = () => {};  // o onclose cuida de tudo
+}
+
+function enviar(obj) {
+  if (!est.ws || est.ws.readyState !== WebSocket.OPEN) return false;
+  est.ws.send(JSON.stringify(obj));
+  return true;
+}
+
+function enviarPing() {
+  const seq = ++est.seqPing;
+  est.pingsAbertos.set(seq, performance.now());
+  enviar({ tipo: "ping", seq, t: Date.now() });
+}
+
+function tratar(m) {
+  switch (m.tipo) {
+    case "bem_vindo":
+      est.idConexao = m.id_conexao;
+      $("info-conexao").textContent = `conexão ${m.id_conexao} · protocolo v${m.versao}`;
+      if (est.tentativas === 0 && est.reconectou) carregarHistorico(true);
+      est.reconectou = true;
+      break;
+    case "msg": {
+      const ja = document.querySelector(`[data-id="${m.id}"]`);
+      if (!ja) adicionarMsg(m);
+      break;
+    }
+    case "ack": {
+      const p = est.pendentes.get(m.id_cliente);
+      if (p) {
+        p.el.classList.remove("pendente");
+        p.el.dataset.id = m.id;
+        p.el.querySelector(".hora").textContent = hora(m.ts);
+        p.el.title = `confirmado em ${(performance.now() - p.t0).toFixed(1)} ms`;
+        est.pendentes.delete(m.id_cliente);
+      }
+      break;
+    }
+    case "pong": {
+      const t0 = est.pingsAbertos.get(m.seq);
+      if (t0 !== undefined) {
+        est.pingsAbertos.delete(m.seq);
+        const rtt = performance.now() - t0;
+        est.rtts.push(rtt); if (est.rtts.length > 20) est.rtts.shift();
+        const media = est.rtts.reduce((a, b) => a + b, 0) / est.rtts.length;
+        $("chip-rtt").textContent = `RTT ${rtt.toFixed(1)} ms`;
+        $("chip-rtt").title = `RTT de aplicação · média dos últimos ${est.rtts.length}: ${media.toFixed(1)} ms`;
+      }
+      break;
+    }
+    case "presenca": atualizarOnline(m.online, m.conexoes); break;
+    case "alerta": mostrarAlerta(m, true); break;
+    case "sala": break;
+    case "erro": {
+      const p = m.ref && est.pendentes.get(m.ref);
+      if (p) { p.el.classList.remove("pendente"); p.el.classList.add("falhou"); est.pendentes.delete(m.ref); }
+      sistema(`erro ${m.codigo} ${m.nome}: ${m.descricao}`, true);
+      break;
+    }
+    default: console.warn("tipo desconhecido", m);
+  }
+}
+
+/* ===================== Envio ===================== */
+$("texto").addEventListener("input", () => { $("contador").textContent = `${$("texto").value.length}/2000`; });
+
+$("form-envio").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const conteudo = $("texto").value.trim();
+  if (!conteudo) return;
+  const idCliente = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random())).slice(0, 8);
+  const el = adicionarMsg({ usuario: est.usuario, conteudo, ts: null }, true);
+  if (!enviar({ tipo: "msg", id_cliente: idCliente, conteudo })) {
+    el.classList.add("falhou"); el.classList.remove("pendente");
+    return sistema("sem conexão — mensagem não enviada", true);
+  }
+  est.pendentes.set(idCliente, { el, t0: performance.now() });
+  $("texto").value = ""; $("contador").textContent = "0/2000";
+});
+
+function marcarPendentesComoFalha() {
+  for (const p of est.pendentes.values()) { p.el.classList.remove("pendente"); p.el.classList.add("falhou"); }
+  est.pendentes.clear();
+}
+
+/* ===================== Salas e histórico ===================== */
+$("sala").addEventListener("change", () => {
+  est.sala = $("sala").value;
+  enviar({ tipo: "entrar", sala: est.sala });
+  carregarHistorico(true);
+});
+
+async function carregarHistorico(limpar) {
+  try {
+    let url = `/api/historico?sala=${est.sala}&limite=50`;
+    if (!limpar && est.maisAntigo) url += `&antes_de=${est.maisAntigo}`;
+    const r = await api(url);
+    const caixa = $("mensagens");
+    if (limpar) { caixa.innerHTML = ""; est.maisAntigo = null; }
+    const botaoVelho = caixa.querySelector(".carregar");
+    if (botaoVelho) botaoVelho.remove();
+    const alturaAntes = caixa.scrollHeight;
+    const frag = document.createDocumentFragment();
+    for (const m of r.mensagens) frag.appendChild(criarMsg(m));
+    caixa.prepend(frag);
+    if (r.mensagens.length) est.maisAntigo = r.mensagens[0].id;
+    if (r.mensagens.length === 50) {
+      const b = document.createElement("button");
+      b.className = "botao-sec carregar"; b.textContent = "Carregar mensagens antigas";
+      b.onclick = () => carregarHistorico(false);
+      caixa.prepend(b);
+    } else if (limpar && !r.mensagens.length) {
+      sistema(`#${est.sala} ainda está vazia`);
+    }
+    if (limpar) caixa.scrollTop = caixa.scrollHeight;
+    else caixa.scrollTop = caixa.scrollHeight - alturaAntes;
+  } catch (e) {
+    if (e.status === 401) return $("btn-sair").click();
+    sistema("não foi possível carregar o histórico: " + e.message, true);
+  }
+}
+
+async function carregarAlertas() {
+  try {
+    const r = await api("/api/alertas?limite=15");
+    $("lista-alertas").innerHTML = "";
+    if (!r.alertas.length) $("lista-alertas").innerHTML = '<span class="vazio">nenhum alerta</span>';
+    for (const a of r.alertas.reverse()) mostrarAlerta(a, false);
+  } catch (_) {}
+}
+
+/* ===================== Renderização ===================== */
+function hora(ts) {
+  if (!ts) return "enviando…";
+  return new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function criarMsg(m, minhaPendente = false) {
+  const el = document.createElement("div");
+  el.className = "msg";
+  if (m.usuario === est.usuario) el.classList.add("minha");
+  if (minhaPendente) el.classList.add("pendente");
+  if (m.id) el.dataset.id = m.id;
+  const meta = document.createElement("div"); meta.className = "meta";
+  const quem = document.createElement("b"); quem.textContent = m.usuario;
+  const h = document.createElement("span"); h.className = "hora"; h.textContent = hora(m.ts);
+  meta.append(quem, h);
+  const corpo = document.createElement("div"); corpo.textContent = m.conteudo;   // textContent evita XSS
+  el.append(meta, corpo);
+  return el;
+}
+
+function adicionarMsg(m, minhaPendente = false) {
+  const caixa = $("mensagens");
+  const perto = caixa.scrollHeight - caixa.scrollTop - caixa.clientHeight < 120;
+  const el = criarMsg(m, minhaPendente);
+  caixa.appendChild(el);
+  if (perto || minhaPendente) caixa.scrollTop = caixa.scrollHeight;
+  return el;
+}
+
+function sistema(texto, erro = false) {
+  const el = document.createElement("div");
+  el.className = "sistema" + (erro ? " erro" : "");
+  el.textContent = texto;
+  $("mensagens").appendChild(el);
+  $("mensagens").scrollTop = $("mensagens").scrollHeight;
+}
+
+function status(texto, classe) {
+  const c = $("chip-status"); c.textContent = texto; c.className = "chip " + classe;
+}
+
+function atualizarOnline(lista, conexoes) {
+  $("n-online").textContent = lista.length;
+  const ul = $("lista-online"); ul.innerHTML = "";
+  if (!lista.length) ul.innerHTML = '<li class="vazio">ninguém</li>';
+  for (const u of lista) {
+    const li = document.createElement("li");
+    const p = document.createElement("span"); p.className = "ponto";
+    const n = document.createElement("span"); n.textContent = u + (u === est.usuario ? " (você)" : "");
+    li.append(p, n); ul.appendChild(li);
+  }
+  $("lista-online").title = `${conexoes} conexões abertas`;
+}
+
+let timerBanner = null;
+function mostrarAlerta(a, aoVivo) {
+  const lista = $("lista-alertas");
+  lista.querySelector(".vazio")?.remove();
+  const item = document.createElement("div");
+  item.className = "alerta-item" + (a.nivel === "medio" ? " medio" : "");
+  const meta = document.createElement("div"); meta.className = "meta";
+  meta.textContent = `${a.regra} · ${hora(a.ts)}`;
+  const d = document.createElement("div"); d.textContent = a.descricao;
+  item.append(meta, d);
+  lista.prepend(item);
+  while (lista.children.length > 30) lista.lastChild.remove();
+
+  if (!aoVivo) return;
+  $("banner-texto").textContent = a.descricao;
+  $("banner").className = a.nivel === "medio" ? "medio" : "";
+  clearTimeout(timerBanner);
+  timerBanner = setTimeout(() => $("banner").classList.add("oculto"), 8000);
+  bipe(a.nivel === "alto" ? 880 : 520);
+  if (a.regra === "palavra_chave") {
+    const ultimas = [...document.querySelectorAll(".msg")].slice(-3);
+    ultimas.forEach((el) => { if (a.descricao.includes(el.querySelector("div:last-child").textContent.slice(0, 40))) el.classList.add("destaque"); });
+  }
+}
+$("banner-fechar").onclick = () => $("banner").classList.add("oculto");
+
+function bipe(freq) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = freq; g.gain.value = 0.06;
+    o.connect(g); g.connect(ctx.destination); o.start();
+    setTimeout(() => { o.stop(); ctx.close(); }, 180);
+  } catch (_) {}
+}
+
+$("btn-painel").onclick = () => $("painel").classList.add("aberto");
+$("btn-fechar-painel").onclick = () => $("painel").classList.remove("aberto");
+
+/* ===================== Início ===================== */
+if (est.token) abrirChat();
+</script>
+</body>
+</html>
