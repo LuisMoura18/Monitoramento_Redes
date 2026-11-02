@@ -1,12 +1,12 @@
 """
-Experimento D: microteste TCP vs UDP (mesma porta, mesma carga).
+Experimento D: microteste TCP vs UDP
 
 O cliente envia N mensagens de TAMANHO bytes primeiro por TCP e depois por UDP, o mais
 rapido possivel. Cada mensagem leva um cabecalho de 12 bytes (numero de sequencia, total e
-tamanho). O servidor confere o que chegou: perdas, ordem e vazao.
+tamanho). O servidor confere o que chegou: perdas, ordem e vazao
 
-    python3 tcp_udp.py servidor                         #servidor
-    python3 tcp_udp.py cliente --host IP_DO_SERVIDOR    #cliente
+    python3 microteste.py servidor                         #servidor
+    python3 microteste.py cliente --host IP_DO_SERVIDOR    #cliente
   (use --n e --tamanho iguais nas duas execucoes do cliente; tamanho entre 12 e 1472)
 """
 import argparse
