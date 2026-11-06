@@ -90,5 +90,4 @@ Para começar com banco e logs zerados, apague as pastas `dados/` e `logs/`.
 
 ## Ferramentas e uso de IA
 
-*(Preencher pelo grupo, como pede o enunciado: bibliotecas, ferramentas e recursos de IA
-usados, e em quais partes.)*
+*O uso de IA foi destinado para configuração do Wireshark, para conferir os scripts de experimentos e para realizar a frontend e ajustes e correções de códigos da backend do site.*
